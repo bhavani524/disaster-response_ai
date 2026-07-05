@@ -1,0 +1,506 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Rivermont · Decision Intelligence</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
+<style>
+  :root{
+    --bg-deep:#0A0F1C;
+    --bg-panel:#101929;
+    --bg-panel-raised:#16223A;
+    --border:#22304C;
+    --border-soft:#1A2438;
+    --text-primary:#E9EFFB;
+    --text-muted:#8492AC;
+    --text-dim:#5A6784;
+    --amber:#F2A93B;
+    --amber-dim:#7A5A22;
+    --cyan:#4FD6E8;
+    --cyan-dim:#1F5761;
+    --red:#E5555A;
+    --red-dim:#5E2529;
+    --green:#59D69B;
+    font-family:'Inter',system-ui,sans-serif;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0;
+    background:
+      radial-gradient(1200px 600px at 15% -10%, rgba(79,214,232,0.06), transparent 60%),
+      radial-gradient(1000px 500px at 90% 0%, rgba(242,169,59,0.05), transparent 55%),
+      var(--bg-deep);
+    color:var(--text-primary);
+    min-height:100vh;
+  }
+  .mono{font-family:'JetBrains Mono',monospace;}
+  .display{font-family:'Space Grotesk',sans-serif;}
+
+  /* ---------- Header / command bar ---------- */
+  header.topbar{
+    position:relative;
+    overflow:hidden;
+    border-bottom:1px solid var(--border);
+    padding:18px 28px;
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    background:linear-gradient(180deg, rgba(22,34,58,0.6), transparent);
+  }
+  .sweep{
+    position:absolute; inset:0; pointer-events:none; opacity:0.5;
+    background:linear-gradient(100deg, transparent 0%, rgba(79,214,232,0.10) 48%, transparent 56%);
+    background-size:250% 100%;
+    animation:sweep 7s linear infinite;
+  }
+  @keyframes sweep{0%{background-position:200% 0;}100%{background-position:-50% 0;}}
+  .brand{display:flex; align-items:baseline; gap:12px; z-index:1;}
+  .brand .eyebrow{font-size:11px; letter-spacing:.16em; color:var(--cyan); text-transform:uppercase;}
+  .brand h1{font-size:22px; margin:0; font-weight:700; letter-spacing:.01em;}
+  .brand .sub{color:var(--text-dim); font-size:12px;}
+  .status-cluster{display:flex; align-items:center; gap:18px; z-index:1;}
+  .clock{font-size:13px; color:var(--text-muted);}
+  .threat-pill{
+    display:flex; align-items:center; gap:8px;
+    padding:6px 14px; border-radius:20px; font-size:12px; font-weight:600;
+    border:1px solid var(--border);
+  }
+  .threat-dot{width:8px;height:8px;border-radius:50%; position:relative;}
+  .threat-dot::after{content:'';position:absolute;inset:-5px;border-radius:50%;border:1px solid currentColor;opacity:.5;animation:pulse-ring 2s ease-out infinite;}
+  @keyframes pulse-ring{0%{transform:scale(0.6);opacity:.6;}100%{transform:scale(1.9);opacity:0;}}
+
+  /* ---------- Layout ---------- */
+  .shell{padding:22px 28px 60px; max-width:1500px; margin:0 auto;}
+  .stat-row{display:grid; grid-template-columns:repeat(4,1fr); gap:14px; margin-bottom:20px;}
+  .stat-card{
+    background:var(--bg-panel); border:1px solid var(--border); border-radius:10px;
+    padding:16px 18px;
+  }
+  .stat-card .label{font-size:11px; text-transform:uppercase; letter-spacing:.08em; color:var(--text-dim); margin-bottom:8px;}
+  .stat-card .value{font-family:'Space Grotesk',sans-serif; font-size:30px; font-weight:600;}
+  .stat-card .delta{font-size:12px; margin-top:4px; color:var(--text-muted);}
+
+  .grid-main{display:grid; grid-template-columns:1.65fr 1fr; gap:16px; align-items:start;}
+  .col{display:flex; flex-direction:column; gap:16px;}
+  .panel{
+    background:var(--bg-panel); border:1px solid var(--border); border-radius:10px;
+    padding:18px 18px 16px;
+  }
+  .panel h2{
+    font-family:'Space Grotesk',sans-serif; font-size:14px; font-weight:600; margin:0 0 12px;
+    display:flex; align-items:center; justify-content:space-between; letter-spacing:.01em;
+  }
+  .panel h2 .tag{font-size:10px; color:var(--text-dim); text-transform:uppercase; letter-spacing:.08em; font-weight:500; font-family:'JetBrains Mono',monospace;}
+
+  /* Zone grid */
+  .zones{display:grid; grid-template-columns:repeat(4,1fr); gap:10px;}
+  .zone-cell{
+    border-radius:8px; padding:10px 12px; border:1px solid var(--border-soft); position:relative; overflow:hidden;
+    background:var(--bg-panel-raised);
+  }
+  .zone-cell .zname{font-size:12px; font-weight:600;}
+  .zone-cell .zcount{font-family:'JetBrains Mono',monospace; font-size:20px; margin-top:6px;}
+  .zone-cell .zlabel{font-size:10px; color:var(--text-dim); text-transform:uppercase;}
+  .zone-cell.crit{box-shadow:inset 0 0 0 1px var(--red); background:linear-gradient(180deg, rgba(229,85,90,.14), var(--bg-panel-raised));}
+  .zone-cell.high{box-shadow:inset 0 0 0 1px var(--amber); background:linear-gradient(180deg, rgba(242,169,59,.10), var(--bg-panel-raised));}
+  .pulse-dot{position:absolute; top:10px; right:10px; width:7px; height:7px; border-radius:50%; background:var(--red);}
+  .pulse-dot::after{content:'';position:absolute;inset:-6px;border-radius:50%;border:1px solid var(--red);opacity:.6;animation:pulse-ring 1.6s ease-out infinite;}
+
+  /* Incident feed */
+  table.feed{width:100%; border-collapse:collapse; font-size:12.5px;}
+  table.feed th{text-align:left; color:var(--text-dim); font-weight:500; font-size:10.5px; text-transform:uppercase; letter-spacing:.05em; padding:6px 8px; border-bottom:1px solid var(--border);}
+  table.feed td{padding:7px 8px; border-bottom:1px solid var(--border-soft); vertical-align:middle;}
+  table.feed tbody tr:hover{background:rgba(255,255,255,0.02);}
+  .feed-wrap{max-height:340px; overflow-y:auto;}
+  .sev-chip{display:inline-block; width:22px; text-align:center; border-radius:4px; font-family:'JetBrains Mono',monospace; font-size:11px; padding:1px 0;}
+  .sev-1,.sev-2{background:var(--cyan-dim); color:var(--cyan);}
+  .sev-3{background:var(--amber-dim); color:var(--amber);}
+  .sev-4,.sev-5{background:var(--red-dim); color:var(--red);}
+  .status-pill{font-size:10.5px; padding:2px 8px; border-radius:10px; text-transform:capitalize; border:1px solid var(--border);}
+  .status-resolved{color:var(--green); border-color:var(--green);}
+  .status-in_progress,.status-responding{color:var(--amber); border-color:var(--amber);}
+  .status-reported{color:var(--red); border-color:var(--red);}
+  .time-ago{color:var(--text-dim); font-family:'JetBrains Mono',monospace; font-size:11px;}
+
+  /* Chat */
+  .chat-window{height:280px; overflow-y:auto; display:flex; flex-direction:column; gap:10px; padding-right:4px; margin-bottom:10px;}
+  .msg{max-width:92%; font-size:13px; line-height:1.45; padding:9px 12px; border-radius:8px;}
+  .msg.user{align-self:flex-end; background:var(--bg-panel-raised); border:1px solid var(--border);}
+  .msg.ai{align-self:flex-start; background:linear-gradient(180deg, rgba(79,214,232,0.08), rgba(79,214,232,0.02)); border:1px solid var(--cyan-dim);}
+  .msg.ai .mode-tag{display:block; font-family:'JetBrains Mono',monospace; font-size:9.5px; color:var(--text-dim); margin-top:6px;}
+  .chat-input-row{display:flex; gap:8px;}
+  .chat-input-row input{
+    flex:1; background:var(--bg-deep); border:1px solid var(--border); border-radius:7px;
+    padding:9px 12px; color:var(--text-primary); font-size:13px; font-family:'Inter',sans-serif;
+  }
+  .chat-input-row input:focus{outline:none; border-color:var(--cyan);}
+  .chat-input-row button{
+    background:var(--cyan); color:#052229; border:none; border-radius:7px; padding:0 16px;
+    font-weight:600; font-size:13px; cursor:pointer;
+  }
+  .chat-input-row button:disabled{opacity:.5; cursor:default;}
+  .suggestions{display:flex; flex-wrap:wrap; gap:6px; margin-bottom:10px;}
+  .chip{
+    font-size:11px; padding:5px 10px; border-radius:14px; border:1px solid var(--border);
+    color:var(--text-muted); cursor:pointer; background:var(--bg-panel-raised);
+  }
+  .chip:hover{border-color:var(--cyan); color:var(--cyan);}
+
+  /* Anomalies / recs list */
+  .list-item{
+    border-left:2px solid var(--border); padding:8px 10px; margin-bottom:8px; font-size:12.5px; border-radius:0 6px 6px 0;
+    background:var(--bg-panel-raised);
+  }
+  .list-item.critical{border-left-color:var(--red);}
+  .list-item.high{border-left-color:var(--amber);}
+  .list-item.moderate{border-left-color:var(--cyan);}
+  .list-item .top-row{display:flex; justify-content:space-between; font-weight:600; margin-bottom:3px;}
+  .list-item .top-row .badge{font-family:'JetBrains Mono',monospace; font-size:10px; color:var(--text-dim); font-weight:400;}
+  .list-item p{margin:0; color:var(--text-muted);}
+
+  .empty{color:var(--text-dim); font-size:12px; padding:8px 0;}
+
+  .run-automation{
+    width:100%; background:var(--amber); color:#2A1B03; border:none; border-radius:7px;
+    padding:10px; font-weight:600; font-size:13px; cursor:pointer; margin-top:4px;
+  }
+  .run-automation:disabled{opacity:.5;}
+  #automationResult{margin-top:10px; font-size:12px; color:var(--text-muted);}
+
+  canvas{max-height:220px;}
+
+  ::-webkit-scrollbar{width:6px; height:6px;}
+  ::-webkit-scrollbar-thumb{background:var(--border); border-radius:3px;}
+
+  @media (max-width: 980px){
+    .grid-main{grid-template-columns:1fr;}
+    .stat-row{grid-template-columns:repeat(2,1fr);}
+    .zones{grid-template-columns:repeat(2,1fr);}
+  }
+</style>
+</head>
+<body>
+
+<header class="topbar">
+  <div class="sweep"></div>
+  <div class="brand">
+    <div>
+      <div class="eyebrow">Decision Intelligence Platform</div>
+      <h1 class="display">RIVERMONT <span style="color:var(--text-dim); font-weight:500;">/ Public Safety Ops</span></h1>
+    </div>
+  </div>
+  <div class="status-cluster">
+    <div class="clock mono" id="clock">--:--:--</div>
+    <div class="threat-pill" id="threatPill">
+      <span class="threat-dot" id="threatDot" style="background:var(--cyan); color:var(--cyan);"></span>
+      <span id="threatLabel">ASSESSING…</span>
+    </div>
+  </div>
+</header>
+
+<div class="shell">
+
+  <div class="stat-row" id="statRow">
+    <div class="stat-card"><div class="label">Active Incidents</div><div class="value" id="statActive">–</div><div class="delta">across 8 zones</div></div>
+    <div class="stat-card"><div class="label">Critical &amp; Active</div><div class="value" id="statCritical" style="color:var(--red)">–</div><div class="delta">severity 4–5, unresolved</div></div>
+    <div class="stat-card"><div class="label">Last 24 Hours</div><div class="value" id="stat24h">–</div><div class="delta" id="stat24hTrend">new reports</div></div>
+    <div class="stat-card"><div class="label">Anomalies Flagged</div><div class="value" id="statAnomalies" style="color:var(--amber)">–</div><div class="delta">vs. 14-day baseline</div></div>
+  </div>
+
+  <div class="grid-main">
+    <div class="col">
+
+      <div class="panel">
+        <h2>Zone Status <span class="tag">active incidents · live</span></h2>
+        <div class="zones" id="zoneGrid"></div>
+      </div>
+
+      <div class="panel">
+        <h2>Incident Feed <span class="tag" id="feedCount">— records</span></h2>
+        <div class="feed-wrap">
+          <table class="feed">
+            <thead><tr><th>Sev</th><th>Type</th><th>Zone</th><th>Status</th><th>Reported</th></tr></thead>
+            <tbody id="feedBody"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="panel">
+        <h2>14-Day History &amp; 3-Day Forecast <span class="tag" id="forecastTrendTag">—</span></h2>
+        <canvas id="forecastChart"></canvas>
+      </div>
+
+    </div>
+
+    <div class="col">
+
+      <div class="panel">
+        <h2>AI Assistant <span class="tag" id="assistantMode">offline-template</span></h2>
+        <div class="chat-window" id="chatWindow">
+          <div class="msg ai">Ask me anything about current conditions — I answer only from live incident data (a small RAG loop: your question is parsed into filters, matched against the dataset, and grounded with anomaly + forecast context).</div>
+        </div>
+        <div class="suggestions">
+          <span class="chip" data-q="What's happening in Riverside right now?">Riverside now?</span>
+          <span class="chip" data-q="How many critical incidents are unresolved?">Unresolved critical?</span>
+          <span class="chip" data-q="Any flood anomalies today?">Flood anomalies?</span>
+          <span class="chip" data-q="What's the forecast for tomorrow?">Forecast tomorrow?</span>
+        </div>
+        <div class="chat-input-row">
+          <input id="chatInput" type="text" placeholder="Ask about incidents, zones, or trends…" />
+          <button id="chatSend">Ask</button>
+        </div>
+      </div>
+
+      <div class="panel">
+        <h2>Anomaly Detection <span class="tag">z-score vs baseline</span></h2>
+        <div id="anomalyList"><div class="empty">Scanning…</div></div>
+      </div>
+
+      <div class="panel">
+        <h2>Recommendations <span class="tag">resource &amp; pre-positioning</span></h2>
+        <div id="recList"><div class="empty">Computing…</div></div>
+        <button class="run-automation" id="runAutomation">Run automation check</button>
+        <div id="automationResult"></div>
+      </div>
+
+    </div>
+  </div>
+
+</div>
+
+<script>
+const API_BASE_CANDIDATES = [window.location.origin, 'http://localhost:4000', 'http://localhost:4001', 'http://localhost:4002'];
+let API_BASE = API_BASE_CANDIDATES[0];
+let META = null;
+
+async function resolveApiBase() {
+  for (const base of API_BASE_CANDIDATES) {
+    try {
+      const res = await fetch(base + '/api/meta', { cache: 'no-store' });
+      if (res.ok) return base;
+    } catch (_) {}
+  }
+  return API_BASE_CANDIDATES[1];
+}
+
+function timeAgo(iso){
+  const s = Math.round((Date.now() - new Date(iso).getTime())/1000);
+  if(s<60) return s+'s ago';
+  if(s<3600) return Math.round(s/60)+'m ago';
+  if(s<86400) return Math.round(s/3600)+'h ago';
+  return Math.round(s/86400)+'d ago';
+}
+
+function tickClock(){
+  document.getElementById('clock').textContent = new Date().toLocaleTimeString('en-GB');
+}
+setInterval(tickClock, 1000); tickClock();
+
+async function fetchJSON(path, opts){
+  const res = await fetch(API_BASE+path, opts);
+  if(!res.ok) throw new Error(path+' failed: '+res.status);
+  return res.json();
+}
+
+function setThreat(criticalCount, anomalyCount){
+  const dot = document.getElementById('threatDot');
+  const label = document.getElementById('threatLabel');
+  const pill = document.getElementById('threatPill');
+  let level, color;
+  if(criticalCount >= 15 || anomalyCount >= 4){ level='ELEVATED THREAT'; color='var(--red)'; }
+  else if(criticalCount >= 6 || anomalyCount >= 2){ level='HEIGHTENED'; color='var(--amber)'; }
+  else { level='NOMINAL'; color='var(--cyan)'; }
+  dot.style.background = color; dot.style.color = color;
+  label.textContent = level; label.style.color = color;
+  pill.style.borderColor = color;
+}
+
+async function loadMeta(){
+  META = await fetchJSON('/api/meta');
+}
+
+async function loadStats(){
+  const s = await fetchJSON('/api/stats');
+  document.getElementById('statActive').textContent = s.activeCount;
+  document.getElementById('statCritical').textContent = s.criticalActiveCount;
+  document.getElementById('stat24h').textContent = s.last24hCount;
+
+  const grid = document.getElementById('zoneGrid');
+  grid.innerHTML = '';
+  const zones = META.zones.map(z => z.name);
+  zones.forEach(zname => {
+    const count = s.activeByZone[zname] || 0;
+    const cell = document.createElement('div');
+    let cls = 'zone-cell';
+    if(count >= 25) cls += ' crit';
+    else if(count >= 15) cls += ' high';
+    cell.className = cls;
+    cell.innerHTML = `
+      ${count>=25?'<div class="pulse-dot"></div>':''}
+      <div class="zname">${zname}</div>
+      <div class="zcount mono">${count}</div>
+      <div class="zlabel">active</div>`;
+    grid.appendChild(cell);
+  });
+  return s;
+}
+
+async function loadFeed(){
+  const data = await fetchJSON('/api/incidents?limit=40');
+  document.getElementById('feedCount').textContent = data.count + ' records (last shown: 40)';
+  const body = document.getElementById('feedBody');
+  body.innerHTML = '';
+  data.incidents.forEach(inc => {
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td><span class="sev-chip sev-${inc.severity}">${inc.severity}</span></td>
+      <td>${inc.type}</td>
+      <td>${inc.zone}</td>
+      <td><span class="status-pill status-${inc.status}">${inc.status.replace('_',' ')}</span></td>
+      <td class="time-ago">${timeAgo(inc.reportedAt)}</td>`;
+    body.appendChild(tr);
+  });
+}
+
+let chart = null;
+async function loadForecast(){
+  const f = await fetchJSON('/api/forecast');
+  document.getElementById('forecastTrendTag').textContent = 'trend: ' + f.forecast[0].trend;
+
+  const histLabels = f.history.map(h => h.date.slice(5));
+  const histData = f.history.map(h => h.count);
+  const foreLabels = f.forecast.map(h => h.date.slice(5));
+  const foreData = f.forecast.map(h => h.predictedIncidents);
+
+  const labels = [...histLabels, ...foreLabels];
+  const actualSeries = [...histData, ...Array(foreData.length).fill(null)];
+  const forecastSeries = [...Array(histData.length-1).fill(null), histData[histData.length-1], ...foreData];
+
+  const ctx = document.getElementById('forecastChart');
+  if(chart) chart.destroy();
+  chart = new Chart(ctx, {
+    type: 'line',
+    data: {
+      labels,
+      datasets: [
+        { label:'Actual', data:actualSeries, borderColor:'#4FD6E8', backgroundColor:'rgba(79,214,232,0.08)', fill:true, tension:0.3, pointRadius:2 },
+        { label:'Forecast', data:forecastSeries, borderColor:'#F2A93B', borderDash:[5,4], fill:false, tension:0.3, pointRadius:2 },
+      ]
+    },
+    options: {
+      responsive:true,
+      plugins:{ legend:{ labels:{ color:'#8492AC', font:{size:11} } } },
+      scales:{
+        x:{ ticks:{ color:'#5A6784', font:{size:10} }, grid:{ color:'#1A2438' } },
+        y:{ ticks:{ color:'#5A6784', font:{size:10} }, grid:{ color:'#1A2438' }, beginAtZero:true }
+      }
+    }
+  });
+}
+
+async function loadAnomalies(){
+  const { anomalies } = await fetchJSON('/api/anomalies');
+  document.getElementById('statAnomalies').textContent = anomalies.length;
+  const list = document.getElementById('anomalyList');
+  list.innerHTML = '';
+  if(!anomalies.length){ list.innerHTML = '<div class="empty">No statistically significant anomalies right now.</div>'; return anomalies; }
+  anomalies.slice(0,6).forEach(a => {
+    const div = document.createElement('div');
+    div.className = 'list-item ' + a.severity;
+    div.innerHTML = `
+      <div class="top-row"><span>${a.type} · ${a.zone}</span><span class="badge">z=${a.zScore}</span></div>
+      <p>${a.recentDailyRate}/day now vs ${a.baselineDailyAvg}/day baseline (${a.recentCount} in window)</p>`;
+    list.appendChild(div);
+  });
+  return anomalies;
+}
+
+async function loadRecommendations(){
+  const { recommendations } = await fetchJSON('/api/recommendations');
+  const list = document.getElementById('recList');
+  list.innerHTML = '';
+  if(!recommendations.length){ list.innerHTML = '<div class="empty">All resource categories within normal utilization.</div>'; return; }
+  recommendations.slice(0,6).forEach(r => {
+    const div = document.createElement('div');
+    div.className = 'list-item ' + (r.priority === 'critical' ? 'critical' : 'high');
+    div.innerHTML = `
+      <div class="top-row"><span>${r.category.replace(/_/g,' ')}${r.zone ? ' · '+r.zone : ''}</span><span class="badge">${r.priority}</span></div>
+      <p>${r.action}</p>`;
+    list.appendChild(div);
+  });
+}
+
+document.getElementById('runAutomation').addEventListener('click', async (e) => {
+  e.target.disabled = true;
+  const out = document.getElementById('automationResult');
+  out.textContent = 'Evaluating anomalies + resource utilization…';
+  try{
+    const res = await fetchJSON('/api/automation/run', { method:'POST' });
+    out.innerHTML = `Evaluated ${res.anomaliesFound} anomalies → <strong style="color:var(--amber)">${res.alertsDispatched} alert(s)</strong> would be dispatched to ops-alerts.`;
+  }catch(err){
+    out.textContent = 'Automation check failed: ' + err.message;
+  }
+  e.target.disabled = false;
+});
+
+// ---- Chat ----
+const chatWindow = document.getElementById('chatWindow');
+const chatInput = document.getElementById('chatInput');
+const chatSend = document.getElementById('chatSend');
+
+function addMsg(text, cls, modeTag){
+  const div = document.createElement('div');
+  div.className = 'msg ' + cls;
+  div.innerHTML = text + (modeTag ? `<span class="mode-tag">mode: ${modeTag}</span>` : '');
+  chatWindow.appendChild(div);
+  chatWindow.scrollTop = chatWindow.scrollHeight;
+}
+
+async function sendQuestion(q){
+  if(!q.trim()) return;
+  addMsg(q, 'user');
+  chatInput.value = '';
+  chatSend.disabled = true;
+  try{
+    const res = await fetchJSON('/api/chat', {
+      method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ question:q })
+    });
+    addMsg(res.answer, 'ai', res.mode);
+    document.getElementById('assistantMode').textContent = res.mode;
+  }catch(err){
+    addMsg('Sorry — the assistant service failed to respond: ' + err.message, 'ai');
+  }
+  chatSend.disabled = false;
+}
+
+chatSend.addEventListener('click', () => sendQuestion(chatInput.value));
+chatInput.addEventListener('keydown', (e) => { if(e.key === 'Enter') sendQuestion(chatInput.value); });
+document.querySelectorAll('.chip').forEach(chip => chip.addEventListener('click', () => sendQuestion(chip.dataset.q)));
+
+// ---- Boot ----
+async function refreshAll(){
+  const [s, anomalies] = await Promise.all([loadStats(), loadAnomalies()]);
+  setThreat(s.criticalActiveCount, anomalies.length);
+  await Promise.all([loadFeed(), loadForecast(), loadRecommendations()]);
+}
+
+(async function boot(){
+  try{
+    API_BASE = await resolveApiBase();
+    await loadMeta();
+    await refreshAll();
+    setInterval(refreshAll, 30000); // live refresh every 30s
+  }catch(err){
+    document.body.innerHTML = `<div style="padding:40px; font-family:monospace; color:#E5555A;">
+      Could not reach the API at ${API_BASE}.<br/>Make sure the backend is running: <code>cd backend && npm install && npm start</code><br/><br/>
+      Error: ${err.message}
+    </div>`;
+  }
+})();
+</script>
+
+</body>
+</html>
