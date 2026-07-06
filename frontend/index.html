@@ -272,7 +272,7 @@
 </div>
 
 <script>
-const API_BASE_CANDIDATES = [window.location.origin, 'http://localhost:4000', 'http://localhost:4001', 'http://localhost:4002'];
+const API_BASE_CANDIDATES = [window.location.origin, 'https://disaster-response-ai-xczf.onrender.com'];
 let API_BASE = API_BASE_CANDIDATES[0];
 let META = null;
 
@@ -489,7 +489,6 @@ async function refreshAll(){
 
 (async function boot(){
   try{
-    API_BASE = await resolveApiBase();
     await loadMeta();
     await refreshAll();
     setInterval(refreshAll, 30000); // live refresh every 30s
