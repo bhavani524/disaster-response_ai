@@ -272,8 +272,12 @@
 </div>
 
 <script>
-const API_BASE_CANDIDATES = [window.location.origin, 'https://disaster-response-ai-xczf.onrender.com'];
-let API_BASE = API_BASE_CANDIDATES[0];
+const API_BASE_CANDIDATES = [
+  "https://disaster-responseai-production.up.railway.app",
+  window.location.origin
+];
+
+let API_BASE = "";
 let META = null;
 
 async function resolveApiBase() {
@@ -487,16 +491,27 @@ async function refreshAll(){
   await Promise.all([loadFeed(), loadForecast(), loadRecommendations()]);
 }
 
-(async function boot(){
-  try{
+(async function boot() {
+  try {
+    API_BASE = await resolveApiBase();
+
+    console.log("Using API:", API_BASE);
+
     await loadMeta();
     await refreshAll();
-    setInterval(refreshAll, 30000); // live refresh every 30s
-  }catch(err){
-    document.body.innerHTML = `<div style="padding:40px; font-family:monospace; color:#E5555A;">
-      Could not reach the API at ${API_BASE}.<br/>Make sure the backend is running: <code>cd backend && npm install && npm start</code><br/><br/>
-      Error: ${err.message}
-    </div>`;
+
+    setInterval(refreshAll, 30000);
+  } catch (err) {
+    document.body.innerHTML = `
+      <div style="padding:40px;font-family:monospace;color:#ff5555">
+        <h2>Backend Connection Failed</h2>
+        <p>Could not connect to:</p>
+        <code>${API_BASE}</code>
+        <br><br>
+        Error:
+        <pre>${err.message}</pre>
+      </div>
+    `;
   }
 })();
 </script>
